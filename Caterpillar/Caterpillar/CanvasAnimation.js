@@ -1,0 +1,775 @@
+var myCanvas = null;
+
+var WIDTH = 800;
+var HEIGHT = 800;
+
+var FIELD_WIDTH = 600;
+var FIELD_HEIGHT = 600;
+
+var BALL_RADIUS = 10;
+var BALL_COUNT = 10;
+var NO_ANGLE = -99;
+var SAMPLE_RATE = 30;
+var MAX_VELOCITY = 200;
+var NULL_POS = -999;
+
+var TRIANGLE_COUNT = 5;
+var TRIANGLE_RADIUS = BALL_RADIUS * 2;
+var TRIANGLE_ROTATE_SPEED = 200;
+var TRIANGLE_ROTATION = Math.PI / 32;
+
+var TOP = 100;
+var BOTTOM = 700;
+var LEFT = 100;
+var RIGHT = 700;
+
+var HAND_WIDTH = 10;
+var HAND_HEIGHT = 5;
+var HAND_HIT_RADIUS = 50;
+
+var HandBall = { "x": NULL_POS, "y": NULL_POS, "radius": HAND_HIT_RADIUS, "direction": NO_ANGLE };
+
+var MousePos = { "x": NULL_POS, "y": NULL_POS };
+
+var BallList = null;
+
+var TriangleList = null;
+
+var timer = null;
+
+function Run()
+{
+    myCanvas = document.getElementById('myCanvas');
+
+    myCanvas.addEventListener('click', CanvasClicked, false);
+    myCanvas.addEventListener('mousemove', CanvasMouseMove, false);
+
+    console.log("myCanvas: " + myCanvas);
+
+    DrawBorder();
+	
+	var ctx = myCanvas.getContext("2d");
+	
+	var balls = BALL_COUNT;
+
+	BallList = new Array();
+
+	TriangleList = new Array();
+	
+	/*var question = "How many balls do you have?";
+	
+	while (balls <= 0) {
+	
+		var ballCnt = prompt(question, "2");
+		
+		if (ballCnt != null && parseInt(ballCnt) > 0)
+		{
+			balls = parseInt(ballCnt);
+		} else {
+			question = "Awe come on, how many you really got?";
+		}
+	
+	}*/
+	
+	for (var i = 0; i < balls; i++) {
+	    BallList.push(GetNewBall());
+	}
+
+	for (var i = 0; i < TRIANGLE_COUNT; i++) {
+	    TriangleList.push(GetNewTriangleList());
+	}
+
+    if (timer != null) {
+        clearInterval(timer);
+	}
+
+	timer = setInterval(function () { TimerUpdate() }, SAMPLE_RATE);
+}
+
+function TimerUpdate() {
+
+    ClearField();
+    
+    DrawBalls();
+
+    DrawTriangles();
+
+    DrawHand();
+
+    MoveBalls();
+
+    MoveTriangles();
+}
+
+function MoveTriangles() {
+    for (var i = 0; i < TriangleList.length; i++) {
+        var lastTriangle = TriangleList[i].triangles[TriangleList[i].triangles.length - 1];
+
+        var newTriangle = GetNewTrianglePosition(lastTriangle, SAMPLE_RATE);
+
+        var hittop = false;
+        var reflect = false;
+        var pHit = { "x": -1, "y": -1 };
+
+        var oldCenter = GetRightTriangleCenter(lastTriangle);
+        var center = GetRightTriangleCenter(newTriangle);
+
+        var xOffset = null;
+
+        // OFF LEFT
+        if (newTriangle.A.x <= LEFT)
+        {
+            var xOffset = LEFT - newTriangle.A.x;
+            newTriangle.A.x += xOffset;
+            newTriangle.B.x += xOffset;
+            newTriangle.C.x += xOffset;
+            reflect = true;
+        } 
+        
+        if (newTriangle.B.x <= LEFT) {
+            var xOffset = LEFT - newTriangle.B.x;
+            newTriangle.A.x += xOffset;
+            newTriangle.B.x += xOffset;
+            newTriangle.C.x += xOffset;
+            reflect = true;
+        } 
+        
+        if (newTriangle.C.x <= LEFT) {
+            var xOffset = LEFT - newTriangle.C.x;
+            newTriangle.A.x += xOffset;
+            newTriangle.B.x += xOffset;
+            newTriangle.C.x += xOffset;
+            reflect = true;
+        }
+
+        // OFF RIGHT
+        if (newTriangle.A.x >= RIGHT)
+        {
+            var xOffset = RIGHT - newTriangle.A.x;
+            newTriangle.A.x += xOffset;
+            newTriangle.B.x += xOffset;
+            newTriangle.C.x += xOffset;
+            reflect = true;
+        } 
+        
+        if (newTriangle.B.x >= RIGHT) {
+            var xOffset = RIGHT - newTriangle.B.x;
+            newTriangle.A.x += xOffset;
+            newTriangle.B.x += xOffset;
+            newTriangle.C.x += xOffset;
+            reflect = true;
+        } 
+        
+        if (newTriangle.C.x >= RIGHT) {
+            var xOffset = RIGHT - newTriangle.C.x;
+            newTriangle.A.x += xOffset;
+            newTriangle.B.x += xOffset;
+            newTriangle.C.x += xOffset;
+            reflect = true;
+        }
+
+        // OFF TOP
+        if (newTriangle.A.y <= TOP) {
+            var yOffset = TOP - newTriangle.A.y;
+            newTriangle.A.y += yOffset;
+            newTriangle.B.y += yOffset;
+            newTriangle.C.y += yOffset;
+            reflect = true;
+            hittop = true;
+        }
+
+        if (newTriangle.B.y <= TOP) {
+            var yOffset = TOP - newTriangle.B.y;
+            newTriangle.A.y += yOffset;
+            newTriangle.B.y += yOffset;
+            newTriangle.C.y += yOffset;
+            reflect = true;
+            hittop = true;
+        }
+
+        if (newTriangle.C.y <= TOP) {
+            var yOffset = TOP - newTriangle.C.y;
+            newTriangle.A.y += yOffset;
+            newTriangle.B.y += yOffset;
+            newTriangle.C.y += yOffset;
+            reflect = true;
+            hittop = true;
+        }
+
+        // OFF BOTTOM
+        if (newTriangle.A.y >= BOTTOM) {
+            var yOffset = BOTTOM - newTriangle.A.y;
+            newTriangle.A.y += yOffset;
+            newTriangle.B.y += yOffset;
+            newTriangle.C.y += yOffset;
+            reflect = true;
+            hittop = true;
+        }
+
+        if (newTriangle.B.y >= BOTTOM) {
+            var yOffset = BOTTOM - newTriangle.B.y;
+            newTriangle.A.y += yOffset;
+            newTriangle.B.y += yOffset;
+            newTriangle.C.y += yOffset;
+            reflect = true;
+            hittop = true;
+        }
+
+        if (newTriangle.C.y >= BOTTOM) {
+            var yOffset = BOTTOM - newTriangle.C.y;
+            newTriangle.A.y += yOffset;
+            newTriangle.B.y += yOffset;
+            newTriangle.C.y += yOffset;
+            reflect = true;
+            hittop = true;
+        }
+
+        if (reflect || (pHit.x >= 0 && pHit.y >= 0)) {
+            newTriangle.direction = GetCollisionReflectionAngle(oldCenter.x, oldCenter.y, center.x, center.y, hittop);
+        } else {
+            // Detect Collisions
+            var collisionResultAngle = GetTriangleCollisionAngle(newTriangle, i, TriangleList);
+
+            if (collisionResultAngle != NO_ANGLE) {
+                newTriangle.direction = collisionResultAngle;
+            }
+        }
+
+        if (TriangleList[i].triangles.length >= 10) {
+            TriangleList[i].triangles.shift();
+        }
+
+        TriangleList[i].triangles.push(newTriangle);
+    }
+}
+
+function MoveBalls() {
+    for (var i = 0; i < BallList.length; i++) {
+        var lastBall = BallList[i].balls[BallList[i].balls.length - 1];
+
+        var jumpDist = GetRandom(1, MAX_VELOCITY * SAMPLE_RATE / 1000);
+
+        var randomAngle = 0;
+
+        if (lastBall.direction == NO_ANGLE) {
+            randomAngle = GetRandomAngle();
+        } else {
+            randomAngle = lastBall.direction
+            //randomAngle = lastBall.direction - (Math.PI / 8) + (Math.random() / 4 * Math.PI);
+        }
+
+        var newBall = GetBallObject(lastBall.x + Math.cos(randomAngle) * jumpDist,
+                        lastBall.y + Math.sin(randomAngle) * jumpDist,
+                        BALL_RADIUS, randomAngle);
+
+        var newAngle = randomAngle;
+        var reflect = false;
+        var hittop = false;
+        var hitPoint = { "x": 0, "y": 0 };
+
+        if (newBall.x - newBall.radius < LEFT) {
+            newBall.x = LEFT + newBall.radius;
+            reflect = true;
+        } else if (newBall.x + newBall.radius > RIGHT) {
+            newBall.x = RIGHT - newBall.radius;
+            reflect = true;
+        }
+
+        if (newBall.y - newBall.radius < TOP) {
+            newBall.y = TOP + newBall.radius;
+            hittop = true;
+            reflect = true;
+        } else if (newBall.y + newBall.radius > BOTTOM) {
+            newBall.y = BOTTOM - newBall.radius;
+            hittop = true;
+            reflect = true;
+        }
+
+        if (reflect) {
+            newAngle = GetCollisionReflectionAngle(lastBall.x, lastBall.y, newBall.x, newBall.y, hittop);
+        }
+
+        // Detect Collisions
+        if (newAngle == randomAngle) {
+            var collisionResultAngle = GetBallCollisionAngle(newBall, i, BallList);
+
+            if (collisionResultAngle != NO_ANGLE) {
+                newAngle = collisionResultAngle;
+            }
+        }
+
+        newBall.direction = newAngle;
+
+        if (BallList[i].balls.length >= 10) {
+            BallList[i].balls.shift();
+        }
+
+        BallList[i].balls.push(newBall);
+    }
+}
+
+function GetBallCollisionAngle(testBall, index, ballList)
+{
+    var retVal = NO_ANGLE;
+
+    var hitHand = false;
+
+    if (HandBall.x != NULL_POS && DetectBallCollision(testBall, HandBall)) {
+        retVal = GetCollisionReflectionAngle(testBall.x, testBall.y, HandBall.x, HandBall.y, false);
+    } else {
+
+        for (var i = 0; i < ballList.length; i++) {
+            // Detect collision on main (front) ball only
+
+            if (i != index) {
+                var ball = ballList[i].balls[ballList[i].balls.length - 1];
+
+                if (DetectBallCollision(testBall, ball)) {
+
+                    retVal = GetCollisionReflectionAngle(testBall.x, testBall.y, ball.x, ball.y, Math.abs(testBall.y - ball.y) > Math.abs(testBall.x - ball.x));
+
+                    break;
+                }
+            }
+        }
+	}
+	
+	return retVal;
+}
+
+function GetTriangleCollisionAngle(tri1, index, trilist) {
+    var retVal = NO_ANGLE;
+
+    for (var i = 0; i < trilist.length; i++) {
+        if (i != index) {
+            var tri = trilist[i].triangles[trilist[i].triangles.length - 1];
+
+            if (DetectTriangleCollision(tri1, tri)) {
+
+                var tri1center = GetRightTriangleCenter(tri1);
+                var tricenter = GetRightTriangleCenter(tri);
+
+                retVal = GetCollisionReflectionAngle(tri1center.x, tri1center.y, tricenter.x, tricenter.y, Math.abs(tri1center.y - tricenter.y) > Math.abs(tri1center.x - tricenter.x));
+
+                break;
+            }
+        }
+    }
+
+    return retVal;
+}
+
+function GetCollisionReflectionAngle(x1, y1, x2, y2, hittop) {
+    var retVal = 0;
+
+    retVal = Math.atan2(y1 - y2, x2 - x1) + (hittop ? 0 : Math.PI);
+
+    return retVal;
+}
+
+function GetAngleAtoB(Ax, Ay, Bx, By) {
+    return Math.atan2(By - Ay, Bx - Ax);
+}
+
+function DrawHand() {
+    if (MousePos.x != NULL_POS && MousePos.y != NULL_POS) {
+        var ctx = myCanvas.getContext("2d");
+        ctx.fillStyle = 'yellow';
+
+        ctx.beginPath();
+        ctx.arc(MousePos.x, MousePos.y, HAND_WIDTH, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.closePath();
+
+        ctx.fillStyle = 'black';
+
+        ctx.beginPath();
+        ctx.arc(MousePos.x - (HAND_WIDTH * .3), MousePos.y - (HAND_HEIGHT * .4), HAND_WIDTH * .2, 0, 2 * Math.PI);
+        ctx.arc(MousePos.x + (HAND_WIDTH * .3), MousePos.y - (HAND_HEIGHT * .4), HAND_WIDTH * .2, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.closePath();
+
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.arc(MousePos.x, MousePos.y + HAND_WIDTH * .1, HAND_WIDTH * .5, 0, Math.PI);
+        ctx.stroke();
+        ctx.closePath();
+    }
+}
+
+function DrawBalls()
+{
+	var offSet = 0;
+	
+	for (var c = 0; c < BallList.length; c++) {
+		var ballList = BallList[c].balls;
+		var color = BallList[c].color;
+		
+		offSet = ballList.length - 1;
+		
+		for (var i = 0; i < ballList.length; i++) {
+		
+			DrawBall(ballList[i], RGBToHex(Math.floor(color.r * ((10 - offSet) / 10)), 
+											Math.floor(color.g * ((10 - offSet) / 10)), 
+											Math.floor(color.b * ((10 - offSet) / 10))));
+			
+			offSet--
+		}
+		
+		offSet = 0;
+	}
+}
+
+function DrawTriangles() {
+    var offSet = 0;
+
+    for (var i = 0; i < TriangleList.length; i++) {
+        var triList = TriangleList[i].triangles;
+        var color = TriangleList[i].color;
+
+        offSet = triList.length - 1;
+
+        for (var j = 0; j < triList.length; j++) {
+
+            DrawTriangle(triList[j], RGBToHex(Math.floor(color.r * ((10 - offSet) / 10)),
+										Math.floor(color.g * ((10 - offSet) / 10)),
+										Math.floor(color.b * ((10 - offSet) / 10))));
+
+            offSet--
+        }
+
+        offSet = 0;
+    }
+}
+
+function DrawTriangle(t, color) {
+    var ctx = myCanvas.getContext("2d");
+    ctx.fillStyle = color;
+
+    ctx.beginPath();
+    ctx.moveTo(t.A.x, t.A.y);
+    ctx.lineTo(t.B.x, t.B.y);
+    ctx.lineTo(t.C.x, t.C.y);
+    ctx.lineTo(t.A.x, t.A.y);
+    ctx.fill();
+    ctx.closePath();
+}
+
+function DrawLine(x1, y1, x2, y2, color) {
+    var ctx = myCanvas.getContext("2d");
+    ctx.strokeStyle = color;
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.closePath();
+}
+
+function DrawBall(b, color)
+{
+	var ctx = myCanvas.getContext("2d");
+	ctx.fillStyle = color;
+	
+	ctx.beginPath();
+	ctx.arc(b.x, b.y, b.radius, 0, 2 * Math.PI);
+	ctx.fill();
+	ctx.closePath();
+}
+
+function GetRandom(min, max)
+{
+	return Math.floor((Math.random() * (max - min)) + min);
+}
+
+function RGBToHex(r, g, b)
+{
+	return "#" + decimalToHex(r, 2) + decimalToHex(g, 2) + decimalToHex(b, 2);
+}
+
+function decimalToHex(d, padding) {
+    var hex = Number(d).toString(16);
+    padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
+
+    while (hex.length < padding) {
+        hex = "0" + hex;
+    }
+
+    return hex;
+}
+
+function Update()
+{
+	var balls = parseInt(document.getElementById('ballCount').value);
+	var rate = parseInt(document.getElementById('sampleRate').value);
+	var radius = parseInt(document.getElementById('radius').value);
+	var velocity = parseInt(document.getElementById('velocity').value);
+	var triangles = parseInt(document.getElementById('triangles').value);
+	
+	if (radius > 0) {
+	    BALL_RADIUS = radius;
+	    TRIANGLE_RADIUS = radius * 2;
+	}
+
+    if (velocity > 0 && velocity != MAX_VELOCITY) {
+        MAX_VELOCITY = velocity;
+
+        for (var i = 0; i < TriangleList.length; i++) {
+            var list = TriangleList[i].triangles;
+
+            for (var j = 0; j < list.length; j++) {
+                list[j].velocity = velocity;
+            }
+        }
+	}
+	
+	var reRun = false;
+
+    //reRun = balls != BALL_COUNT || triangles != TRIANGLE_COUNT;
+
+	if (balls > 0 && balls != BALL_COUNT) {
+
+	    if (balls < BALL_COUNT) {
+	        for (var i = 0; i < BALL_COUNT - balls; i++) {
+	            BallList.pop();
+	        }
+	    } else {
+	        for (var i = 0; i < balls - BALL_COUNT; i++) {
+	            BallList.push(GetNewBall());
+	        }
+	    }
+
+	    BALL_COUNT = balls;
+	}
+
+	if (triangles > 0 && triangles != TRIANGLE_COUNT) {
+
+	    if (triangles < TRIANGLE_COUNT) {
+	        for (var i = 0; i < TRIANGLE_COUNT - triangles; i++) {
+	            TriangleList.pop();
+	        }
+	    } else {
+	        for (var i = 0; i < triangles - TRIANGLE_COUNT; i++) {
+	            TriangleList.push(GetNewTriangleList());
+	        }
+	    }
+
+	    TRIANGLE_COUNT = triangles;
+	}
+	
+	if (rate > 0) {
+		if (SAMPLE_RATE != rate) {
+			if (!reRun) {
+				clearInterval(timer);
+				timer = setInterval(function () { TimerUpdate() }, rate);
+			} else {
+				clearInterval(timer);
+				timer = null;
+			}
+		}
+		
+		SAMPLE_RATE = rate;
+	}
+
+if (reRun) {
+    console.log("reRun: SAMPLE_RATE: " + SAMPLE_RATE + " BALL_COUNT: " + BALL_COUNT + " MAX_VELOCITY: " + MAX_VELOCITY + " BALL_RADIUS: " + BALL_RADIUS);
+		Run();
+	}
+}
+
+function DetectBallCollision(ball1, ball2) {
+	
+	return Math.sqrt(Math.pow(Math.abs(ball1.x - ball2.x), 2) + Math.pow(Math.abs(ball1.y - ball2.y), 2)) <= (ball1.radius + ball2.radius);
+
+}
+
+function DetectTriangleCollision(tri1, tri2) {
+    return PointInsideTriangle(tri1.A.x, tri1.A.y, tri2) ||
+            PointInsideTriangle(tri1.B.x, tri1.B.y, tri2) ||
+            PointInsideTriangle(tri1.C.x, tri1.C.y, tri2);
+}
+
+function PointInsideTriangle(x, y, tri) {
+   // Calculate area of triangle ABC
+   var A = TriangleArea(tri.A.x, tri.A.y, tri.B.x, tri.B.y, tri.C.x, tri.C.y);
+ 
+   /* Calculate area of triangle PBC */  
+   var A1 = TriangleArea(x, y, tri.B.x, tri.B.y, tri.C.x, tri.C.y);
+ 
+   /* Calculate area of triangle PAC */  
+   var A2 = TriangleArea(tri.A.x, tri.A.y, x, y, tri.C.x, tri.C.y);
+ 
+   /* Calculate area of triangle PAB */   
+   var A3 = TriangleArea(tri.A.x, tri.A.y, tri.B.x, tri.B.y, x, y);
+   
+   /* Check if sum of A1, A2 and A3 is same as A */
+   return (A == A1 + A2 + A3);
+}
+
+function TriangleArea(x1, y1, x2, y2, x3, y3) {
+    return Math.abs(((x1*(y2-y3)) + (x2*(y3-y1)) + (x3*(y1-y2))) / 2.0);
+}
+
+function getMousePos(evt) {
+    return { x: evt.clientX, y: evt.clientY };
+}
+
+
+function CanvasClicked(evt) {
+    
+}
+
+function CanvasMouseMove(evt) {
+    var pos = getMousePos(evt);
+
+    var rect = myCanvas.getBoundingClientRect();
+
+    pos.x -= rect.left;
+    pos.y -= rect.top;
+
+    pos.x *= (myCanvas.width / myCanvas.clientWidth);
+    pos.y *= (myCanvas.height / myCanvas.clientHeight);
+
+    if (pos.x > LEFT + HAND_WIDTH && pos.x < RIGHT - HAND_WIDTH && pos.y > TOP + HAND_HEIGHT && pos.y < BOTTOM - HAND_WIDTH) {
+        MousePos = pos;
+        HandBall.x = pos.x;
+        HandBall.y = pos.y;
+    }else {
+        MousePos.x = NULL_POS;
+        MousePos.y = NULL_POS;
+        HandBall.x = NULL_POS;
+        HandBall.y = NULL_POS;
+    }
+}
+
+function DrawBorder() {
+    var ctx = myCanvas.getContext("2d");
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'white';
+    ctx.fillStyle = 'black';
+
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    ctx.beginPath();
+    ctx.moveTo(LEFT, TOP);
+    ctx.lineTo(RIGHT, TOP);
+    ctx.lineTo(RIGHT, BOTTOM);
+    ctx.lineTo(LEFT, BOTTOM);
+    ctx.lineTo(LEFT, TOP);
+    ctx.stroke();
+    ctx.closePath();
+}
+
+function GetBallObject(x, y, radius, direction) {
+    return { "x": x, "y": y, "radius": radius, "direction": direction };
+}
+
+function GetTriangleCopy(t)
+{
+    return GetTriangleObject(t.A.x, t.A.y, t.B.x, t.B.y, t.C.x, t.C.y, t.radius, t.direction, t.velocity, t.rotation);
+}
+
+function GetTriangleObject(x1, y1, x2, y2, x3, y3, radius, direction, velocity, rotation) {
+    return { "A": { "x": x1, "y": y1 }, "B": { "x": x2, "y": y2 }, "C": { "x": x3, "y": y3}, "radius": radius, "direction": direction, "velocity": velocity, "rotation": rotation };
+}
+
+function GetNewTrianglePosition(t, time) {
+    var newTriangle = GetTriangleCopy(t);
+
+    // Move the coordinates
+    var distance = t.velocity * SAMPLE_RATE / 1000;
+
+    newTriangle.A.x += Math.cos(newTriangle.direction) * distance;
+    newTriangle.A.y += Math.sin(newTriangle.direction) * distance;
+    newTriangle.B.x += Math.cos(newTriangle.direction) * distance;
+    newTriangle.B.y += Math.sin(newTriangle.direction) * distance;
+    newTriangle.C.x += Math.cos(newTriangle.direction) * distance;
+    newTriangle.C.y += Math.sin(newTriangle.direction) * distance;
+
+    var center = GetRightTriangleCenter(newTriangle);
+
+    // Rotate Coordinates
+    var currentAngle = GetAngleAtoB(center.x, center.y, newTriangle.A.x, newTriangle.A.y);
+
+    newTriangle.A.x = center.x + (Math.cos(currentAngle + newTriangle.rotation) * newTriangle.radius);
+    newTriangle.A.y = center.y + (Math.sin(currentAngle + newTriangle.rotation) * newTriangle.radius);
+
+    currentAngle = GetAngleAtoB(center.x, center.y, newTriangle.B.x, newTriangle.B.y);
+
+    newTriangle.B.x = center.x + (Math.cos(currentAngle + newTriangle.rotation) * newTriangle.radius);
+    newTriangle.B.y = center.y + (Math.sin(currentAngle + newTriangle.rotation) * newTriangle.radius);
+
+    currentAngle = GetAngleAtoB(center.x, center.y, newTriangle.C.x, newTriangle.C.y);
+
+    newTriangle.C.x = center.x + (Math.cos(currentAngle + newTriangle.rotation) * newTriangle.radius);
+    newTriangle.C.y = center.y + (Math.sin(currentAngle + newTriangle.rotation) * newTriangle.radius);
+
+    return newTriangle;
+}
+
+function GetRightTriangleCenter(triangle)
+{
+    return { "x": (triangle.A.x + triangle.B.x + triangle.C.x) / 3, "y": (triangle.A.y + triangle.B.y + triangle.C.y) / 3 };
+}
+
+function GetRGBObject(r, g, b) {
+    return { "r": r, "g": g, "b": b }
+}
+
+function GetRandomAngle()
+{
+    return Math.random() * 2 * Math.PI;
+}
+
+function ClearField() {
+    var ctx = myCanvas.getContext("2d");
+    ctx.clearRect(LEFT, TOP, FIELD_WIDTH, FIELD_HEIGHT);
+
+    ctx.fillStyle = 'black';
+    ctx.fillRect(LEFT, TOP, FIELD_WIDTH, FIELD_HEIGHT);
+}
+
+function GetNewTriangle() {
+    var triangleCenterX = GetRandom(TRIANGLE_RADIUS, FIELD_WIDTH - BALL_RADIUS) - 1 + LEFT;
+    var triangleCenterY = GetRandom(TRIANGLE_RADIUS, FIELD_HEIGHT - BALL_RADIUS) - 1 + TOP;
+
+    var direction = GetRandomAngle();
+
+    var Ax = triangleCenterX + Math.cos(direction) * TRIANGLE_RADIUS;
+    var Ay = triangleCenterY + Math.sin(direction) * TRIANGLE_RADIUS;
+
+    var nextAngle = direction + (2 * Math.PI / 3);
+
+    var Bx = triangleCenterX + Math.cos(nextAngle) * TRIANGLE_RADIUS;
+    var By = triangleCenterY + Math.sin(nextAngle) * TRIANGLE_RADIUS;
+
+    nextAngle = nextAngle + (2 * Math.PI / 3);
+
+    var Cx = triangleCenterX + Math.cos(nextAngle) * TRIANGLE_RADIUS;
+    var Cy = triangleCenterY + Math.sin(nextAngle) * TRIANGLE_RADIUS;
+
+    return GetTriangleObject(Ax, Ay, Bx, By, Cx, Cy, TRIANGLE_RADIUS, direction, MAX_VELOCITY, TRIANGLE_ROTATION);
+}
+
+function GetNewTriangleList()
+{
+    var list = new Array();
+
+	list.push(GetNewTriangle());
+
+	return { "color": GetRandomColor(), "triangles": list };
+}
+
+function GetRandomColor() {
+    return GetRGBObject(GetRandom(1, 256) - 1, GetRandom(1, 256) - 1, GetRandom(1, 256) - 1);
+}
+
+function GetNewBall() {
+    var list = new Array();
+
+    list.push(GetBallObject(GetRandom(BALL_RADIUS, FIELD_WIDTH - BALL_RADIUS) - 1 + LEFT, GetRandom(BALL_RADIUS, FIELD_HEIGHT - BALL_RADIUS) - 1 + TOP, BALL_RADIUS, NO_ANGLE));
+
+    return { "color": GetRandomColor(), "balls": list };
+}
